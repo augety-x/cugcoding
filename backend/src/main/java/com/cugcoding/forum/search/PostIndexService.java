@@ -1,14 +1,16 @@
 package com.cugcoding.forum.search;
 
+import org.elasticsearch.index.query.MultiMatchQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.core.ElasticsearchRestTemplate;
 import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.data.elasticsearch.core.query.Criteria;
-import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
 import org.springframework.data.elasticsearch.core.query.IndexQuery;
 import org.springframework.data.elasticsearch.core.query.IndexQueryBuilder;
+import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
+import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -29,7 +31,6 @@ public class PostIndexService {
     public void index(PostDocument doc) {
         IndexQuery query = new IndexQueryBuilder().withId(String.valueOf(doc.getId())).withObject(doc).build();
         esTemplate.index(query, esTemplate.getIndexCoordinatesFor(PostDocument.class));
-        log.debug("Indexed post {}", doc.getId());
     }
 
     /** Bulk index a list of posts. */
@@ -45,22 +46,26 @@ public class PostIndexService {
     /** Delete a post from the index. */
     public void delete(Long postId) {
         esTemplate.delete(String.valueOf(postId), PostDocument.class);
-        log.debug("Deleted post {} from index", postId);
     }
 
-    /** Search posts by keyword across title and content. */
-    public SearchHits<PostDocument> search(String keyword, int from, int size) {
-        Criteria criteria = new Criteria("title").contains(keyword)
-                .or(new Criteria("content").contains(keyword));
-        CriteriaQuery query = new CriteriaQuery(criteria, PageRequest.of(from / size, size));
+    /** Search posts by keyword using multi_match on title and content. */
+    public SearchHits<PostDocument> search(String keyword, int page, int size) {
+        MultiMatchQueryBuilder mmq = QueryBuilders.multiMatchQuery(keyword, "title", "content")
+                .type(MultiMatchQueryBuilder.Type.BEST_FIELDS);
+        NativeSearchQuery query = new NativeSearchQueryBuilder()
+                .withQuery(mmq)
+                .withPageable(PageRequest.of(page, size))
+                .build();
         return esTemplate.search(query, PostDocument.class);
     }
 
     /** Count total matches for a keyword. */
     public long count(String keyword) {
-        Criteria criteria = new Criteria("title").contains(keyword)
-                .or(new Criteria("content").contains(keyword));
-        CriteriaQuery query = new CriteriaQuery(criteria, PageRequest.of(0, 1));
+        MultiMatchQueryBuilder mmq = QueryBuilders.multiMatchQuery(keyword, "title", "content");
+        NativeSearchQuery query = new NativeSearchQueryBuilder()
+                .withQuery(mmq)
+                .withMaxResults(0)
+                .build();
         return esTemplate.count(query, PostDocument.class);
     }
 }

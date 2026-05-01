@@ -243,8 +243,7 @@ public class ForumService {
 
     /** Search posts by keyword using Elasticsearch. */
     public SearchResult searchPosts(String keyword, int page, int size, Long currentUserId) {
-        int from = (page - 1) * size;
-        SearchHits<PostDocument> hits = postIndexService.search(keyword, from, size);
+        SearchHits<PostDocument> hits = postIndexService.search(keyword, page - 1, size);
         long total = postIndexService.count(keyword);
 
         List<PostDetail> items = new ArrayList<>();
