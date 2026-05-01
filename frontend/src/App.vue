@@ -126,8 +126,9 @@ onMounted(syncSession)
 
 /* Search banner */
 .search-banner {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 28px 24px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e8e8e8;
+  padding: 24px 24px;
   display: flex;
   justify-content: center;
 }
@@ -137,46 +138,44 @@ onMounted(syncSession)
   max-width: 560px;
   width: 100%;
   background: #fff;
-  border-radius: 28px;
-  padding: 4px 4px 4px 20px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
-  transition: box-shadow 0.2s;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 .search-box:focus-within {
-  box-shadow: 0 6px 32px rgba(0,0,0,0.22);
+  border-color: #1a1a2e;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
 }
 .search-icon {
   color: #999;
   flex-shrink: 0;
+  margin-left: 14px;
 }
 .search-box input {
   flex: 1;
   border: none;
   outline: none;
-  font-size: 16px;
-  padding: 12px 12px;
+  font-size: 15px;
+  padding: 10px 12px;
   background: transparent;
-  color: #333;
+  color: #1a1a2e;
 }
-.search-box input::placeholder {
-  color: #aaa;
-  font-weight: 400;
-}
+.search-box input::placeholder { color: #bbb; }
 .search-box button {
-  padding: 10px 28px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  padding: 8px 24px;
+  background: #1a1a2e;
   color: #fff;
   border: none;
-  border-radius: 24px;
-  font-size: 15px;
+  border-radius: 8px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: background 0.2s;
   flex-shrink: 0;
 }
-.search-box button:hover {
-  opacity: 0.9;
-}
+.search-box button:hover { background: #333; }
 
 /* Admin link */
 .admin-link { color: #ffa502 !important; font-weight: 600; }
