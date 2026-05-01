@@ -1,0 +1,61 @@
+# Reference project
+paicoding/
+
+# Reference / temp files
+1.html
+alioss_context.txt
+obs_context.txt
+obs_sections.txt
+paicoding_login_report.md
+
+# Build output
+backend/target/
+frontend/dist/
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+.npm-cache/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs & temp
+*.log
+logs/
+*.tmp
+
+# Secrets (CRITICAL - never commit)
+credentials.csv
+.env
+.env.local
+application-local.properties
+src/main/resources/application-local.properties
+
+# Playwright artifacts
+.playwright-mcp/
+
+# Temp / debug files
+*.bak
+baidu-debug.png
+code_blocks.txt
+code_blocks2.txt
+code_paragraphs.txt
+paragraphs.txt
+extracted.txt
+homepage-snapshot.txt
+docs/问题.md
+
+# Root package files (use frontend/package.json instead)
+/package.json
+/package-lock.json
+
+# Old screenshots
+screenshots/
