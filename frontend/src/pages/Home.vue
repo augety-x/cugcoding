@@ -58,6 +58,7 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { columns } from '../data/columns'
 import { renderMarkdown } from '../utils/markdown'
