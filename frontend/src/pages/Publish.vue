@@ -98,20 +98,22 @@ async function uploadImages(files) {
 
 /**
  * Import a .md file:
- * 1. Read file content in browser (no backend call needed)
+ * 1. Read content in browser via FileReader
  * 2. Extract title from first # heading
- * 3. Find base64-embedded images, upload to OBS, replace with OBS URLs
- * 4. Keep HTTP URLs and local paths as-is
+ * 3. Categorize every image ref:
+ *    - base64 data URI  → upload to OBS, replace with OBS URL
+ *    - http(s) URL     → keep as-is
+ *    - local path       → replace with placeholder (browser can't read local disk)
  */
 async function handleMdImport(e) {
   const file = e.target.files?.[0]
   if (!file) return
-  e.target.value = '' // reset immediately
+  e.target.value = ''
 
   try {
     const rawContent = await readFileAsText(file)
 
-    // Extract title: first # heading
+    // Extract title
     const titleMatch = rawContent.match(/^#\s+(.+)$/m)
     if (!form.title.trim() && titleMatch) {
       form.title = titleMatch[1].trim()
@@ -119,29 +121,43 @@ async function handleMdImport(e) {
       form.title = file.name.replace(/\.[^.]+$/, '')
     }
 
-    // Process base64 images: upload to OBS, replace with URL
-    const base64Regex = /!\[([^\]]*)\]\((data:image\/[^;]+;base64,[^)]+)\)/g
-    const base64Matches = [...rawContent.matchAll(base64Regex)]
+    // Find all image references
+    const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g
+    const matches = [...rawContent.matchAll(imgRegex)]
 
-    if (base64Matches.length > 0) {
-      window.__toast?.(`正在上传 ${base64Matches.length} 张内嵌图片...`, 'info')
-      let processedContent = rawContent
-      for (const match of base64Matches) {
-        const [full, alt, dataUri] = match
+    let base64Count = 0
+    let localCount = 0
+    let processed = rawContent
+
+    for (const [, alt, url] of matches) {
+      if (url.startsWith('data:image/')) {
+        // base64 → upload to OBS
         try {
-          const file = dataUriToFile(dataUri, alt || 'image')
-          const url = await uploadSingleImage(file)
-          if (url) {
-            processedContent = processedContent.replace(full, `![${alt}](${url})`)
+          const imgFile = dataUriToFile(url, alt || 'image')
+          const obsUrl = await uploadSingleImage(imgFile)
+          if (obsUrl) {
+            processed = processed.replace(`![${alt}](${url})`, `![${alt}](${obsUrl})`)
+            base64Count++
           }
-        } catch (_) { /* keep original if upload fails */ }
+        } catch (_) { /* skip */ }
+      } else if (/^https?:\/\//i.test(url)) {
+        // Remote URL → keep as-is
+      } else {
+        // Local path → replace with placeholder
+        const placeholder = `> ⚠️ 本地图片无法自动导入，请将图片拖拽到此处替换\n>\n> 原始路径: \`${url}\`\n>\n> ![${alt}](${url})`
+        processed = processed.replace(`![${alt}](${url})`, placeholder)
+        localCount++
       }
-      form.content = processedContent
-      window.__toast?.('Markdown 导入完成', 'success')
-    } else {
-      form.content = rawContent
-      window.__toast?.('Markdown 导入成功', 'success')
     }
+
+    form.content = processed
+
+    // Report
+    const parts = []
+    if (base64Count > 0) parts.push(`${base64Count} 张内嵌图片已上传`)
+    if (localCount > 0) parts.push(`${localCount} 张本地图片需手动替换（已标记占位）`)
+    if (parts.length === 0) parts.push('导入成功（无水印图片需处理）')
+    window.__toast?.(parts.join('，'), localCount > 0 ? 'info' : 'success')
   } catch (e) {
     window.__toast?.('导入失败：' + (e.message || '未知错误'), 'error')
   }
