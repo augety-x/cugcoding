@@ -19,5 +19,11 @@ public class StartupRunner implements CommandLineRunner {
         } catch (Exception e) {
             System.err.println("Forum startup init skipped: " + e.getMessage());
         }
+        // Rebuild ES search index after DB is ready
+        try {
+            service.rebuildIndex();
+        } catch (Exception e) {
+            System.err.println("ES index rebuild skipped (ES may not be running): " + e.getMessage());
+        }
     }
 }

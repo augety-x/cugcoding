@@ -137,6 +137,26 @@ public class ApiController {
         return service.getAllRecentAudits(limit);
     }
 
+    // ======================== Search ========================
+
+    @GetMapping("/search")
+    public ForumService.SearchResult search(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        AuthContext.LoginUser user = AuthContext.get();
+        return service.searchPosts(q.trim(), Math.max(1, page), Math.min(50, size),
+                user != null ? user.getUserId() : null);
+    }
+
+    /** Admin: rebuild ES index from MySQL. */
+    @PostMapping("/admin/search/rebuild")
+    public ResponseEntity<Void> rebuildIndex() {
+        AuthContext.requireAdmin();
+        service.rebuildIndex();
+        return ResponseEntity.ok().build();
+    }
+
     // ======================== Posts ========================
 
     @GetMapping("/posts")

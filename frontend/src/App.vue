@@ -10,6 +10,12 @@
       </div>
       <nav class="topnav">
         <RouterLink to="/" class="nav-link">首页</RouterLink>
+        <form class="search-bar" @submit.prevent="doSearch">
+          <input v-model="searchQuery" placeholder="搜索文章..." />
+          <button type="submit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
+        </form>
         <RouterLink v-if="user && user.role === 'ADMIN'" to="/admin" class="nav-link admin-link">管理后台</RouterLink>
         <RouterLink to="/publish" class="nav-link primary-action">发布文章</RouterLink>
         <template v-if="!user">

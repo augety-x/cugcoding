@@ -3,6 +3,12 @@ package com.cugcoding.forum.service;
 import com.cugcoding.forum.auth.JwtUtil;
 import com.cugcoding.forum.model.*;
 import com.cugcoding.forum.repo.ForumRepository;
+import com.cugcoding.forum.search.PostDocument;
+import com.cugcoding.forum.search.PostIndexService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -13,15 +19,20 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class ForumService {
 
+    private static final Logger log = LoggerFactory.getLogger(ForumService.class);
+
     private final ForumRepository repository;
+    private final PostIndexService postIndexService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public ForumService(ForumRepository repository) {
+    public ForumService(ForumRepository repository, PostIndexService postIndexService) {
         this.repository = repository;
+        this.postIndexService = postIndexService;
     }
 
     @Transactional
@@ -215,7 +226,65 @@ public class ForumService {
     }
 
     public long createPost(Long userId, String title, String content) {
-        return repository.createPost(userId, title, content);
+        long id = repository.createPost(userId, title, content);
+        // Index the new post to ES (async-friendly, fire and forget)
+        try {
+            Post post = repository.findPostById(id).orElse(null);
+            if (post != null) {
+                postIndexService.index(toDocument(post));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to index post {}: {}", id, e.getMessage());
+        }
+        return id;
+    }
+
+    // ======================== Search ========================
+
+    /** Search posts by keyword using Elasticsearch. */
+    public SearchResult searchPosts(String keyword, int page, int size, Long currentUserId) {
+        int from = (page - 1) * size;
+        SearchHits<PostDocument> hits = postIndexService.search(keyword, from, size);
+        long total = postIndexService.count(keyword);
+
+        List<PostDetail> items = new ArrayList<>();
+        for (SearchHit<PostDocument> hit : hits) {
+            Post post = repository.findPostById(hit.getContent().getId()).orElse(null);
+            if (post != null) {
+                PostDetail detail = toDetail(post);
+                detail.setViewCount(hit.getContent().getViewCount());
+                detail.setLikeCount(hit.getContent().getLikeCount());
+                if (currentUserId != null) {
+                    detail.setLiked(repository.isLikedBy(post.getId(), currentUserId));
+                }
+                items.add(detail);
+            }
+        }
+        return new SearchResult(items, total, page, size);
+    }
+
+    /** Rebuild the entire ES index from MySQL data. */
+    public void rebuildIndex() {
+        log.info("Rebuilding ES index...");
+        List<Post> posts = repository.findPosts();
+        List<PostDocument> docs = posts.stream().map(this::toDocument).collect(Collectors.toList());
+        postIndexService.bulkIndex(docs);
+        log.info("Rebuilt ES index with {} posts", docs.size());
+    }
+
+    private PostDocument toDocument(Post post) {
+        PostDocument doc = new PostDocument();
+        doc.setId(post.getId());
+        doc.setUserId(post.getUserId());
+        doc.setTitle(post.getTitle());
+        doc.setContent(post.getContent());
+        doc.setViewCount(post.getViewCount());
+        doc.setLikeCount(post.getLikeCount());
+        doc.setCreatedAt(post.getCreatedAt() != null ? post.getCreatedAt().toString() : null);
+        // Resolve author name
+        repository.findUserById(post.getUserId())
+                .ifPresent(u -> doc.setAuthorName(u.getUsername()));
+        return doc;
     }
 
     // ======================== Views & Likes ========================
@@ -319,5 +388,24 @@ public class ForumService {
         public String getUsername() { return username; }
         public String getToken() { return token; }
         public String getRole() { return role; }
+    }
+
+    public static class SearchResult {
+        private final List<PostDetail> items;
+        private final long total;
+        private final int page;
+        private final int size;
+
+        public SearchResult(List<PostDetail> items, long total, int page, int size) {
+            this.items = items;
+            this.total = total;
+            this.page = page;
+            this.size = size;
+        }
+
+        public List<PostDetail> getItems() { return items; }
+        public long getTotal() { return total; }
+        public int getPage() { return page; }
+        public int getSize() { return size; }
     }
 }
