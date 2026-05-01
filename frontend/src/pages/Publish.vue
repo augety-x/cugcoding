@@ -96,28 +96,86 @@ async function uploadImages(files) {
   return results
 }
 
-/** Import a .md file: upload to backend, which extracts images, uploads to OBS, returns processed markdown. */
+/**
+ * Import a .md file:
+ * 1. Read file content in browser (no backend call needed)
+ * 2. Extract title from first # heading
+ * 3. Find base64-embedded images, upload to OBS, replace with OBS URLs
+ * 4. Keep HTTP URLs and local paths as-is
+ */
 async function handleMdImport(e) {
   const file = e.target.files?.[0]
   if (!file) return
-  window.__toast?.('正在解析 Markdown 文件并上传图片...', 'info')
+  e.target.value = '' // reset immediately
+
   try {
-    const formData = new FormData()
-    formData.append('file', file)
-    const { data } = await axios.post('/api/image/import-markdown', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    // Use filename as default title (strip extension)
-    if (!form.title.trim() && data.title) {
-      form.title = data.title
+    const rawContent = await readFileAsText(file)
+
+    // Extract title: first # heading
+    const titleMatch = rawContent.match(/^#\s+(.+)$/m)
+    if (!form.title.trim() && titleMatch) {
+      form.title = titleMatch[1].trim()
+    } else if (!form.title.trim()) {
+      form.title = file.name.replace(/\.[^.]+$/, '')
     }
-    form.content = data.content || ''
-    window.__toast?.('Markdown 文件导入成功', 'success')
+
+    // Process base64 images: upload to OBS, replace with URL
+    const base64Regex = /!\[([^\]]*)\]\((data:image\/[^;]+;base64,[^)]+)\)/g
+    const base64Matches = [...rawContent.matchAll(base64Regex)]
+
+    if (base64Matches.length > 0) {
+      window.__toast?.(`正在上传 ${base64Matches.length} 张内嵌图片...`, 'info')
+      let processedContent = rawContent
+      for (const match of base64Matches) {
+        const [full, alt, dataUri] = match
+        try {
+          const file = dataUriToFile(dataUri, alt || 'image')
+          const url = await uploadSingleImage(file)
+          if (url) {
+            processedContent = processedContent.replace(full, `![${alt}](${url})`)
+          }
+        } catch (_) { /* keep original if upload fails */ }
+      }
+      form.content = processedContent
+      window.__toast?.('Markdown 导入完成', 'success')
+    } else {
+      form.content = rawContent
+      window.__toast?.('Markdown 导入成功', 'success')
+    }
   } catch (e) {
-    window.__toast?.(e?.response?.data?.message || '导入失败', 'error')
-  } finally {
-    e.target.value = '' // reset file input
+    window.__toast?.('导入失败：' + (e.message || '未知错误'), 'error')
   }
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('文件读取失败'))
+    reader.readAsText(file, 'UTF-8')
+  })
+}
+
+/** Convert data:image/...;base64,... to a File object. */
+function dataUriToFile(dataUri, name) {
+  const [header, b64] = dataUri.split(',')
+  const mime = header.match(/:(.*?);/)?.[1] || 'image/png'
+  const binary = atob(b64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  const ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : mime.split('/')[1]
+  return new File([bytes], `${name}.${ext}`, { type: mime })
+}
+
+/** Upload a single File to OBS, return the URL. */
+async function uploadSingleImage(file) {
+  if (file.size > 5 * 1024 * 1024) return null
+  const formData = new FormData()
+  formData.append('image', file)
+  const { data } = await axios.post('/api/image/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  return data.url || null
 }
 
 async function publish() {
