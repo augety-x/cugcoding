@@ -61,7 +61,14 @@ import { sessionState } from './stores/session'
 const router = useRouter()
 const user = computed(() => sessionState.user)
 const toasts = ref([])
+const searchQuery = ref('')
 let toastId = 0
+
+function doSearch() {
+  const q = searchQuery.value.trim()
+  if (!q) return
+  router.push({ path: '/search', query: { q } })
+}
 
 // Expose toast globally
 window.__toast = (message, type = 'info') => {
@@ -103,6 +110,18 @@ onMounted(syncSession)
 }
 .page-enter-from { opacity: 0; transform: translateY(6px); }
 .page-leave-to { opacity: 0; transform: translateY(-6px); }
+
+/* Search bar */
+.search-bar { display: flex; align-items: center; margin: 0 8px; }
+.search-bar input {
+  width: 160px; padding: 6px 12px; border: 1px solid #ddd; border-radius: 20px;
+  font-size: 13px; outline: none; transition: width 0.2s, border-color 0.2s; background: #f8f9fa;
+}
+.search-bar input:focus { width: 220px; border-color: #667eea; background: #fff; }
+.search-bar button {
+  margin-left: -32px; border: none; background: none; cursor: pointer; color: #999; padding: 4px;
+}
+.search-bar button:hover { color: #667eea; }
 
 /* Admin link */
 .admin-link { color: #ffa502 !important; font-weight: 600; }
