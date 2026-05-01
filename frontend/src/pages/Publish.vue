@@ -3,10 +3,10 @@
     <div class="section-title">
       <h2>发布文章</h2>
       <div style="display:flex;gap:8px;align-items:center">
-        <button type="button" class="btn btn-sm import-btn" @click="fileInput?.click()">
+        <button type="button" class="btn btn-sm import-btn" @click="triggerImport">
           导入 MD 文件
         </button>
-        <input ref="fileInput" type="file" accept=".md,.markdown,.txt" @change="handleMdImport" style="display:none" />
+        <input ref="fileInput" type="file" accept=".md,.markdown,.txt" @change="handleMdImport" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden" />
         <RouterLink class="btn ghost" to="/">取消</RouterLink>
       </div>
     </div>
@@ -57,6 +57,10 @@ const router = useRouter()
 const form = reactive({ title: '', content: '' })
 const publishing = ref(false)
 const fileInput = ref(null)
+
+function triggerImport() {
+  fileInput.value?.click()
+}
 
 const plugins = [gfm(), highlight()]
 
