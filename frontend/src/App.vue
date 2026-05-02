@@ -10,6 +10,7 @@
       </div>
       <nav class="topnav">
         <RouterLink to="/" class="nav-link">首页</RouterLink>
+        <RouterLink to="/rag" class="nav-link rag-link">AI 助手</RouterLink>
         <RouterLink v-if="user && user.role === 'ADMIN'" to="/admin" class="nav-link admin-link">管理后台</RouterLink>
         <RouterLink to="/publish" class="nav-link primary-action">发布文章</RouterLink>
         <template v-if="!user">
@@ -117,7 +118,7 @@ onMounted(syncSession)
 .global-search {
   display: flex;
   align-items: center;
-  max-width: 1200px;
+  max-width: 560px;
   margin: 0 auto 20px;
   background: #fff;
   border: 1px solid #e0e0e0;
@@ -150,6 +151,10 @@ onMounted(syncSession)
   align-items: center;
 }
 .global-search button:hover { color: #333; }
+
+/* RAG link */
+.rag-link { color: #667eea !important; font-weight: 600; }
+.rag-link:hover { color: #764ba2 !important; }
 
 /* Admin link */
 .admin-link { color: #ffa502 !important; font-weight: 600; }

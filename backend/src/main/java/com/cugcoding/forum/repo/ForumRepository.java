@@ -1,6 +1,7 @@
 package com.cugcoding.forum.repo;
 
 import com.cugcoding.forum.model.*;
+import com.cugcoding.forum.rag.KnowledgeChunk;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.ArrayList;
 
 @Repository
 public class ForumRepository {
@@ -93,6 +95,15 @@ public class ForumRepository {
                 + "path VARCHAR(200), "
                 + "ip_address VARCHAR(45), "
                 + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS knowledge_chunks ("
+                + "id BIGINT PRIMARY KEY AUTO_INCREMENT, "
+                + "source_type VARCHAR(20) NOT NULL, "
+                + "source_id BIGINT DEFAULT 0, "
+                + "source_name VARCHAR(255), "
+                + "chunk_index INT DEFAULT 0, "
+                + "content TEXT NOT NULL, "
+                + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                + "INDEX idx_source (source_type, source_id))");
         jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS comments ("
                 + "id BIGINT PRIMARY KEY AUTO_INCREMENT, "
                 + "post_id BIGINT NOT NULL, "
@@ -455,6 +466,46 @@ public class ForumRepository {
     }
 
     // ======================== Admin Stats ========================
+
+    // ======================== Knowledge Chunks (RAG) ========================
+
+    public void clearKnowledgeChunks() {
+        jdbcTemplate.update("DELETE FROM knowledge_chunks");
+    }
+
+    public void insertKnowledgeChunk(String sourceType, Long sourceId, String sourceName, int chunkIndex, String content) {
+        String sql = "INSERT INTO knowledge_chunks(source_type,source_id,source_name,chunk_index,content) VALUES(?,?,?,?,?)";
+        jdbcTemplate.update(sql, sourceType, sourceId, sourceName, chunkIndex, content);
+    }
+
+    public List<KnowledgeChunk> findAllKnowledgeChunks() {
+        return jdbcTemplate.query(
+                "SELECT id,source_type,source_id,source_name,chunk_index,content,created_at FROM knowledge_chunks ORDER BY id",
+                chunkRowMapper);
+    }
+
+    public List<KnowledgeChunk> findChunksByArticleIds(List<Long> articleIds) {
+        if (articleIds.isEmpty()) return new ArrayList<>();
+        String placeholders = articleIds.stream().map(id -> "?").reduce((a, b) -> a + "," + b).orElse("");
+        return jdbcTemplate.query(
+                "SELECT id,source_type,source_id,source_name,chunk_index,content,created_at FROM knowledge_chunks "
+                        + "WHERE source_type='ARTICLE' AND source_id IN (" + placeholders + ") ORDER BY id",
+                chunkRowMapper, articleIds.toArray());
+    }
+
+    private final RowMapper<KnowledgeChunk> chunkRowMapper = (rs, i) -> {
+        KnowledgeChunk c = new KnowledgeChunk();
+        c.setId(rs.getLong("id"));
+        c.setSourceType(rs.getString("source_type"));
+        c.setSourceId(rs.getLong("source_id"));
+        c.setSourceName(rs.getString("source_name"));
+        c.setChunkIndex(rs.getInt("chunk_index"));
+        c.setContent(rs.getString("content"));
+        c.setCreatedAt(rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toLocalDateTime() : null);
+        return c;
+    };
+
+    // ======================== Admin Sessions ========================
 
     /** All active sessions (for admin session management). */
     public List<UserSession> findAllActiveSessions() {

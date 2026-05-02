@@ -2,6 +2,7 @@ package com.cugcoding.forum.service;
 
 import com.cugcoding.forum.auth.JwtUtil;
 import com.cugcoding.forum.model.*;
+import com.cugcoding.forum.rag.RagService;
 import com.cugcoding.forum.repo.ForumRepository;
 import com.cugcoding.forum.search.PostDocument;
 import com.cugcoding.forum.search.PostIndexService;
@@ -28,11 +29,13 @@ public class ForumService {
 
     private final ForumRepository repository;
     private final PostIndexService postIndexService;
+    private final RagService ragService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public ForumService(ForumRepository repository, PostIndexService postIndexService) {
+    public ForumService(ForumRepository repository, PostIndexService postIndexService, RagService ragService) {
         this.repository = repository;
         this.postIndexService = postIndexService;
+        this.ragService = ragService;
     }
 
     @Transactional
@@ -260,6 +263,11 @@ public class ForumService {
             }
         }
         return new SearchResult(items, total, page, size);
+    }
+
+    /** Rebuild RAG knowledge base from articles. */
+    public int rebuildKnowledgeBase() {
+        return ragService.rebuildAllChunks();
     }
 
     /** Rebuild the entire ES index from MySQL data. */

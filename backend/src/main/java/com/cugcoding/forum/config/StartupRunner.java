@@ -25,5 +25,12 @@ public class StartupRunner implements CommandLineRunner {
         } catch (Exception e) {
             System.err.println("ES index rebuild skipped (ES may not be running): " + e.getMessage());
         }
+        // Rebuild RAG knowledge chunks
+        try {
+            int chunks = service.rebuildKnowledgeBase();
+            System.out.println("RAG knowledge base rebuilt: " + chunks + " chunks");
+        } catch (Exception e) {
+            System.err.println("RAG rebuild skipped: " + e.getMessage());
+        }
     }
 }

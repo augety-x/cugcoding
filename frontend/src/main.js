@@ -9,6 +9,7 @@ import Publish from './pages/Publish.vue'
 import ColumnList from './pages/ColumnList.vue'
 import AdminDashboard from './pages/AdminDashboard.vue'
 import SearchResults from './pages/SearchResults.vue'
+import RagChat from './pages/RagChat.vue'
 import './style.css'
 
 axios.defaults.baseURL = 'http://localhost:8080'
@@ -19,6 +20,7 @@ const routes = [
   { path: '/login', component: Login },
   { path: '/publish', component: Publish },
   { path: '/admin', component: AdminDashboard },
+  { path: '/rag', component: RagChat },
   { path: '/search', component: SearchResults },
   { path: '/columns/:id', component: ColumnList, props: true },
   { path: '/posts/:id', component: PostDetail, props: true }
